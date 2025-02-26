@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PDF Search Engine</title>
+  <!-- Load PDF.js from a CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #searchInput {
+      width: 80%;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #results div {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+    }
+    .highlight {
+      background: yellow;
+    }
+  </style>
+</head>
+<body>
+  <h1>PDF Search Engine</h1>
+  <input type="text" id="searchInput" placeholder="Enter keyword" />
+  <button onclick="searchPDF()">Search</button>
+  <div id="results"></div>
+
+  <script>
+    // Specify the PDF file (ensure this file is in your repository)
+    const pdfUrl = 'Senarai kesalahan & denda kompaun Penguatkuasaan Undang-Undang JPD.pdf';
+
+    // Variables to store the PDF document and text for each page
+    let pdfDoc = null;
+    let pagesText = [];
+
+    // Load the PDF using PDF.js
+    pdfjsLib.getDocument(pdfUrl).promise.then(pdf => {
+      pdfDoc = pdf;
+      const numPages = pdf.numPages;
+      let loadPagePromises = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        loadPagePromises.push(
+          pdf.getPage(i).then(page => {
+            return page.getTextContent().then(textContent => {
+              // Concatenate all text items from the page into one string
+              const pageText = textContent.items.map(item => item.str).join(' ');
+              pagesText[i - 1] = pageText;
+            });
+          })
+        );
+      }
+      return Promise.all(loadPagePromises);
+    }).catch(err => {
+      console.error('Error loading PDF:', err);
+    });
+
+    // Function to perform a keyword search through the PDF text
+    function searchPDF() {
+      const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+
+      if (!keyword) {
+        resultsDiv.innerHTML = '<p>Please enter a keyword.</p>';
+        return;
+      }
+
+      let found = false;
+      pagesText.forEach((text, index) => {
+        if (text.toLowerCase().includes(keyword)) {
+          found = true;
+          // Find the index and create a snippet (with some context)
+          const pos = text.toLowerCase().indexOf(keyword);
+          const snippet = text.substring(Math.max(0, pos - 50), pos + keyword.length + 50);
+          const resultHTML = `<div>
+                                <strong>Page ${index + 1}:</strong><br>
+                                ...${snippet.replace(new RegExp(keyword, 'gi'), match => `<span class="highlight">${match}</span>`)}...
+                              </div>`;
+          resultsDiv.innerHTML += resultHTML;
+        }
+      });
+      if (!found) {
+        resultsDiv.innerHTML = '<p>No results found.</p>';
+      }
+    }
+  </script>
+</body>
+</html>
